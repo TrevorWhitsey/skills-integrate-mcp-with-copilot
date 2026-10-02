@@ -1,50 +1,55 @@
 # Mergington High School Activities API
 
-A super simple FastAPI application that allows students to view and sign up for extracurricular activities.
+A FastAPI application for viewing extracurricular activities and managing student enrollment.
 
 ## Features
 
-- View all available extracurricular activities
-- Sign up for activities
+- View activities and current participants
+- Sign in with a provisioned school account
+- Restrict enrollment changes to teachers and coordinators
+- Maintain student profiles and roles in trusted server configuration
 
 ## Getting Started
 
-1. Install the dependencies:
+Install dependencies from the repository root:
 
-   ```
-   pip install fastapi uvicorn
-   ```
+```sh
+pip install -r requirements.txt
+```
 
-2. Run the application:
+From this directory, generate a password hash for each account. The password is prompted and is not included in shell history:
 
-   ```
-   python app.py
-   ```
+```sh
+python -c 'import getpass; from app import hash_password; print(hash_password(getpass.getpass("Password: ")))'
+```
 
-3. Open your browser and go to:
-   - API documentation: http://localhost:8000/docs
-   - Alternative documentation: http://localhost:8000/redoc
+Configure accounts with the generated hashes. Roles are assigned only in this trusted server-side configuration; users cannot grant themselves roles.
+
+```sh
+export SCHOOL_EMAIL_DOMAIN="mergington.edu"
+export SESSION_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+export AUTH_USERS_JSON='{"teacher@mergington.edu":{"name":"School Teacher","role":"teacher","password_hash":"REPLACE_WITH_HASH"},"student@mergington.edu":{"name":"Student Name","grade":"11","role":"student","password_hash":"REPLACE_WITH_HASH"}}'
+```
+
+Run the app from this directory:
+
+```sh
+uvicorn app:app --reload
+```
+
+Open http://localhost:8000. API documentation is available at http://localhost:8000/docs.
+
+For production, configure a persistent, private `SESSION_SECRET_KEY` and set `COOKIE_SECURE=true` when serving over HTTPS. Do not commit account configuration, password hashes, or secrets. This setup uses pre-provisioned accounts; it does not integrate with an external school SSO provider or provide self-registration.
 
 ## API Endpoints
 
-| Method | Endpoint                                                          | Description                                                         |
-| ------ | ----------------------------------------------------------------- | ------------------------------------------------------------------- |
-| GET    | `/activities`                                                     | Get all activities with their details and current participant count |
-| POST   | `/activities/{activity_name}/signup?email=student@mergington.edu` | Sign up for an activity                                             |
+| Method | Endpoint | Description |
+| ------ | -------- | ----------- |
+| GET | `/activities` | Get activities and current participants |
+| POST | `/auth/login` | Sign in with a configured school account |
+| GET | `/auth/me` | Get the current account profile and the user's enrollments |
+| POST | `/auth/logout` | Sign out |
+| POST | `/activities/{activity_name}/signup?email=student@mergington.edu` | Teacher or coordinator enrolls a configured student |
+| DELETE | `/activities/{activity_name}/unregister?email=student@mergington.edu` | Teacher or coordinator removes a student |
 
-## Data Model
-
-The application uses a simple data model with meaningful identifiers:
-
-1. **Activities** - Uses activity name as identifier:
-
-   - Description
-   - Schedule
-   - Maximum number of participants allowed
-   - List of student emails who are signed up
-
-2. **Students** - Uses email as identifier:
-   - Name
-   - Grade level
-
-All data is stored in memory, which means data will be reset when the server restarts.
+Activity and enrollment data is currently stored in memory and resets when the server restarts.
